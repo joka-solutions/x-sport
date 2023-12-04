@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -34,8 +36,37 @@ class AuthController extends Controller
             'location' => $location
         ]);
 
+        $verificationCode = Str::random(6);
+        $user->verification_code = $verificationCode;
+        $user->save();
+
+        Mail::raw("رمز التحقق الخاص بك هو: $verificationCode", function ($message) use ($user) {
+            $message->to($user->email)->subject('رمز التحقق');
+        });
+
         // إرجاع الاستجابة المناسبة (مثل رمز الاستجابة 200 ورسالة نجاح)
         return response()->json(['message' => 'تم إنشاء الحساب بنجاح'], 200);
+    }
+
+    public function verifyCode(Request $request)
+    {
+//        $request->validate([
+//            'email' => 'required|email|exists:users,email',
+//            'verification_code' => 'required',
+//        ]);
+
+        $user = User::where('email', $request->email)->first();
+
+        // التحقق من صحة رمز التحقق
+        if ($user->verification_code === $request->verification_code) {
+            // تحديث حالة التحقق للمستخدم
+            $user->is_verified = true;
+            $user->save();
+
+            return response()->json(['message' => 'تم التحقق بنجاح']);
+        } else {
+            return response()->json(['message' => 'رمز التحقق غير صحيح'], 400);
+        }
     }
 
     public function login(Request $request)

@@ -22,6 +22,7 @@ Route::get('/test_api', function (){
 });
 
 Route::post('/register', [AuthController::class, 'register'])->name('register');
+Route::post('/verify-code', [AuthController::class, 'verifyCode'])->name('verifyCode');
 Route::post('/login', [AuthController::class, 'login'])->name('login');
 
 Route::post('/user_details', [UserController::class, 'store'])->name('store');
