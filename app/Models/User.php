@@ -17,6 +17,8 @@ class User extends Authenticatable
      *
      * @var array<int, string>
      */
+
+
     protected $fillable = [
         'name',
         'email',
@@ -24,7 +26,10 @@ class User extends Authenticatable
         'phone',
         'location',
         'social_type',
-        'social_id'
+        'social_id',
+        'longitude',
+        'latitude',
+        'is_verified'
     ];
 
     /**
@@ -49,5 +54,10 @@ class User extends Authenticatable
 
     public function details(){
         return $this->hasOne(UserDetails::class);
+    }
+
+    public function getIsVerifiedAttribute($value)
+    {
+        return $value ? true : false;
     }
 }

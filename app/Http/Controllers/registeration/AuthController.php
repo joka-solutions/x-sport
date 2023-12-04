@@ -14,13 +14,17 @@ class AuthController extends Controller
 {
     public function register(Request $request)
     {
+       // return $request;
         // استقبال البيانات من طلب الإنشاء
         $name = $request->input('name');
         $email = $request->input('email');
         $password = $request->input('password');
         $password_confirmation = $request->input('password_confirmation');
         $phone = $request->input('phone');
-        $location = $request->input('location');
+        $longitude = $request->longitude;
+        $latitude = $request->latitude;
+
+
 
         // التحقق من تطابق كلمة المرور وتأكيد كلمة المرور
         if ($password !== $password_confirmation) {
@@ -33,11 +37,13 @@ class AuthController extends Controller
             'email' => $email,
             'password' => Hash::make($password),
             'phone' => $phone,
-            'location' => $location
+            'longitude' => $longitude,
+            'latitude' => $latitude,
         ]);
 
         $verificationCode = Str::random(6);
         $user->verification_code = $verificationCode;
+        $user->is_verified = false;
         $user->save();
 
         Mail::raw("رمز التحقق الخاص بك هو: $verificationCode", function ($message) use ($user) {
@@ -45,7 +51,7 @@ class AuthController extends Controller
         });
 
         // إرجاع الاستجابة المناسبة (مثل رمز الاستجابة 200 ورسالة نجاح)
-        return response()->json(['message' => 'تم إنشاء الحساب بنجاح'], 200);
+        return response()->json(['message' => 'تم إنشاء الحساب بنجاح','data'=>$user], 200);
     }
 
     public function verifyCode(Request $request)
@@ -63,7 +69,7 @@ class AuthController extends Controller
             $user->is_verified = true;
             $user->save();
 
-            return response()->json(['message' => 'تم التحقق بنجاح']);
+            return response()->json(['message' => 'تم التحقق بنجاح','data'=>$user]);
         } else {
             return response()->json(['message' => 'رمز التحقق غير صحيح'], 400);
         }
