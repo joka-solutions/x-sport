@@ -24,6 +24,8 @@ Route::get('/test_api', function (){
 Route::post('/register', [AuthController::class, 'register'])->name('register');
 Route::post('/verify-code', [AuthController::class, 'verifyCode'])->name('verifyCode');
 Route::post('/login', [AuthController::class, 'login'])->name('login');
+Route::post('/register_with_google', [AuthController::class, 'registerWithGoogle'])->name('registerWithGoogle');
+
 
 Route::post('/user_details', [UserController::class, 'store'])->name('store');
 Route::get('/get_sport', [SportController::class, 'get_sport'])->name('get_sport');
