@@ -26,7 +26,11 @@ class AuthController extends Controller
         $longitude = $request->longitude;
         $latitude = $request->latitude;
 
+        $userExists = User::where('email', $email)->exists();
+        if ($userExists) {
+            return response()->json(['message' => 'البريد الالكتروني موجود سابقا'], 400);
 
+        }
         // التحقق من تطابق كلمة المرور وتأكيد كلمة المرور
         if ($password !== $password_confirmation) {
             return response()->json(['message' => 'كلمة المرور وتأكيد كلمة المرور غير متطابقين'], 400);
@@ -70,9 +74,15 @@ class AuthController extends Controller
         $user->is_verified = false;
         $user->save();
 
+        try{
         Mail::raw("رمز التحقق الخاص بك هو:   $verificationCode", function ($message) use ($user) {
             $message->to($user->email)->subject('رمز التحقق');
         });
+
+        } catch (Swift_TransportException $e) {
+            return response()->json(['error' => 'حدث خطأ أثناء إرسال البريد الإلكتروني']);
+
+        }
 
         // إرجاع الاستجابة المناسبة (مثل رمز الاستجابة 200 ورسالة نجاح)
         return response()->json(['message' => 'تم إنشاء الحساب بنجاح', 'token' => $token, 'data' => $user], 200);
@@ -99,38 +109,45 @@ class AuthController extends Controller
         }
     }
 
+
+
     public function login(Request $request)
     {
-        // استقبال بيانات تسجيل الدخول
-        $emailOrPhone = $request->input('email_or_phone');
-        $password = $request->input('password');
+        $credentials = $request->only('email_or_phone', 'password');
 
-        // تحقق من صحة بيانات تسجيل الدخول
-        if (filter_var($emailOrPhone, FILTER_VALIDATE_EMAIL)) {
-            // إذا كان البريد الإلكتروني صالحًا، استخدمه كمعرّف
-            $credentials = [
-                'email' => $emailOrPhone,
-                'password' => $password,
-            ];
+        if (filter_var($credentials['email_or_phone'], FILTER_VALIDATE_EMAIL)) {
+            $authField = 'email'; // البريد الإلكتروني
         } else {
-            // إذا لم يكن البريد الإلكتروني صالحًا، استخدم رقم الهاتف كمعرّف
-            $credentials = [
-                'phone' => $emailOrPhone,
-                'password' => $password,
-            ];
+            $authField = 'phone'; // رقم الهاتف
         }
 
-        // تحقق من صحة بيانات تسجيل الدخول
-        if (Auth::validate($credentials)) {
-            // تم التحقق بنجاح
-            return response()->json(['message' => 'تم تسجيل الدخول بنجاح'], 200);
+        // محاولة تسجيل الدخول باستخدام البيانات المُقدمة
+        if (Auth::attempt([$authField => $credentials['email_or_phone'], 'password' => $credentials['password']])) {
+            // التحقق من نجاح تسجيل الدخول واسترجاع بيانات المستخدم
+            $user = Auth::user();
+
+            $token = Token::where('user_id',$user->id)->first();
+
+            return response()->json(
+                [
+                    'message' => 'تم تسجيل الدخول بنجاح',
+                    'token'=> $token->token,
+                    'user' => $user
+                ], 200);
         } else {
-            // عند فشل التحقق من صحة بيانات تسجيل الدخول
+            // رسالة خطأ في حالة فشل عملية تسجيل الدخول
             return response()->json(['message' => 'بيانات تسجيل الدخول غير صحيحة'], 401);
         }
     }
 
+
     public function registerWithGoogle(Request $request){
+
+        $userExists = User::where('email', $request->email)->exists();
+        if ($userExists) {
+            return response()->json(['message' => 'البريد الالكتروني موجود سابقا'], 400);
+
+        }
 
         $newUser = new User();
 
@@ -143,7 +160,9 @@ class AuthController extends Controller
 
         $newUser->save();
 
+
         $user = User::where('email',$request->email)->first();
+
 
 
         $secretKey = Str::random(32);
