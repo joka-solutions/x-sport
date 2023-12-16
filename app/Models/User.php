@@ -29,7 +29,8 @@ class User extends Authenticatable
         'social_id',
         'longitude',
         'latitude',
-        'is_verified'
+        'is_verified',
+        'image'
     ];
 
     /**
