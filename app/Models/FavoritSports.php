@@ -5,15 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Sport extends Model
+class FavoritSports extends Model
 {
     use HasFactory;
     protected $fillable=[
-        'name'
+        'user_id',
+        'sport_id'
     ];
 
-    public function favoriteSports()
-    {
-        return $this->belongsToMany(Sport::class, 'sport_id');
-    }
+
 }

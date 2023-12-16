@@ -57,6 +57,14 @@ class User extends Authenticatable
         return $this->hasOne(UserDetails::class);
     }
 
+    public function token(){
+        return $this->hasOne(Token::class,'user_id');
+    }
+
+    public function favoritSports(){
+        return $this->hasMany(FavoritSports::class,'user_id');
+    }
+
     public function getIsVerifiedAttribute($value)
     {
         return $value ? true : false;

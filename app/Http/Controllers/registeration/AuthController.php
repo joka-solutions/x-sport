@@ -49,6 +49,7 @@ class AuthController extends Controller
         $user = User::where('email', $email)->first();
 
 
+
         $secretKey = Str::random(32);
 
         // توليد بيانات المستخدم الخاصة بالتوكن
@@ -68,11 +69,14 @@ class AuthController extends Controller
 
         $user_token->save();
 
+        $user_new = User::where('id', $user->id)->with('token')->first();
+
 
         $verificationCode = Str::random(6);
         $user->verification_code = $verificationCode;
         $user->is_verified = false;
         $user->save();
+
 
         try{
         Mail::raw("رمز التحقق الخاص بك هو:   $verificationCode", function ($message) use ($user) {
@@ -85,7 +89,11 @@ class AuthController extends Controller
         }
 
         // إرجاع الاستجابة المناسبة (مثل رمز الاستجابة 200 ورسالة نجاح)
-        return response()->json(['message' => 'تم إنشاء الحساب بنجاح', 'token' => $token, 'data' => $user], 200);
+        return response()->json([
+            'message' => 'تم إنشاء الحساب بنجاح',
+
+            'data' => $user_new
+        ], 200);
     }
 
     public function verifyCode(Request $request)
@@ -94,7 +102,11 @@ class AuthController extends Controller
         $cleanToken = str_replace('Bearer ', '', $token);
 
         $user_token = Token::where('token', $cleanToken)->first();
-        $user = User::where('id', $user_token->user_id)->first();
+        if(!isset($user_token)) {
+            return response()->json(['message' => 'رمز التوكن  غير صحيح'], 400);
+
+        }
+        $user = User::where('id', $user_token->user_id)->with('token')->first();
 
 
         // التحقق من صحة رمز التحقق
@@ -103,7 +115,11 @@ class AuthController extends Controller
             $user->is_verified = true;
             $user->save();
 
-            return response()->json(['message' => 'تم التحقق بنجاح', 'token' => $cleanToken, 'data' => $user]);
+            return response()->json(
+                [
+                    'message' => 'تم التحقق بنجاح',
+                    'data' => $user
+                ]);
         } else {
             return response()->json(['message' => 'رمز التحقق غير صحيح'], 400);
         }
@@ -113,7 +129,9 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-        $credentials = $request->only('email_or_phone', 'password');
+
+
+            $credentials = $request->only('email_or_phone', 'password');
 
         if (filter_var($credentials['email_or_phone'], FILTER_VALIDATE_EMAIL)) {
             $authField = 'email'; // البريد الإلكتروني
@@ -126,13 +144,15 @@ class AuthController extends Controller
             // التحقق من نجاح تسجيل الدخول واسترجاع بيانات المستخدم
             $user = Auth::user();
 
-            $token = Token::where('user_id',$user->id)->first();
+            $new_user = User::with('token')->find($user->id);
+
+            //$token = Token::where('user_id',$user->id)->first();
 
             return response()->json(
                 [
                     'message' => 'تم تسجيل الدخول بنجاح',
-                    'token'=> $token->token,
-                    'user' => $user
+
+                    'user' => $new_user
                 ], 200);
         } else {
             // رسالة خطأ في حالة فشل عملية تسجيل الدخول
@@ -184,12 +204,13 @@ class AuthController extends Controller
 
         $user_token->save();
 
+        $new_user= User::with('token')->find($user->id);
+
         // إرجاع التوكن في استجابة التسجيل
         return response()->json([
             'message' => 'تم تسجيل المستخدم بنجاح.',
-            'token' => $token,
-            'user_id' => $user->id,
-            'user'=>$newUser,
+
+            'user'=>$new_user,
 
         ]);
     }
