@@ -3,7 +3,11 @@
 namespace App\Http\Controllers\registeration;
 
 use App\Http\Controllers\Controller;
+use App\Models\FavoritSports;
+use App\Models\Sport;
 use App\Models\Token;
+use App\Models\UserDetails;
+use App\Models\UserLevel;
 use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
@@ -69,7 +73,8 @@ class AuthController extends Controller
 
         $user_token->save();
 
-        $user_new = User::where('id', $user->id)->with('token')->first();
+        $user_new = User::where('id', $user->id)->first();
+        $token = Token::where('user_id',$user->id)->first();
 
 
         $verificationCode = Str::random(6);
@@ -88,11 +93,24 @@ class AuthController extends Controller
 
         }
 
+        $data = [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'is_verified' => $user->is_verified,
+            'phone' => $user->phone,
+            'longitude' => $user->longitude,
+            'latitude' => $user->latitude,
+
+            'created_at'=>$user->created_at,
+            'updated_at'=>$user->updated_at
+        ];
+
         // إرجاع الاستجابة المناسبة (مثل رمز الاستجابة 200 ورسالة نجاح)
         return response()->json([
             'message' => 'تم إنشاء الحساب بنجاح',
-
-            'data' => $user_new
+            'user' => $data,
+            'token'=>$token->token
         ], 200);
     }
 
@@ -115,10 +133,24 @@ class AuthController extends Controller
             $user->is_verified = true;
             $user->save();
 
+            $data = [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'is_verified' => $user->is_verified,
+                'phone' => $user->phone,
+                'longitude' => $user->longitude,
+                'latitude' => $user->latitude,
+                'image' => url($user->image), // تحديث هناو
+                'created_at'=>$user->created_at,
+                'updated_at'=>$user->updated_at
+            ];
+
             return response()->json(
                 [
                     'message' => 'تم التحقق بنجاح',
-                    'data' => $user
+                    'user' => $data,
+                    'token'=>$user_token->token
                 ]);
         } else {
             return response()->json(['message' => 'رمز التحقق غير صحيح'], 400);
@@ -144,15 +176,48 @@ class AuthController extends Controller
             // التحقق من نجاح تسجيل الدخول واسترجاع بيانات المستخدم
             $user = Auth::user();
 
-            $new_user = User::with('token')->find($user->id);
+            $new_user = User::find($user->id);
+            $token = Token::where('user_id',$user->id)->first();
 
-            //$token = Token::where('user_id',$user->id)->first();
+            $data = [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'is_verified' => $user->is_verified,
+                'phone' => $user->phone,
+                'longitude' => $user->longitude,
+                'latitude' => $user->latitude,
+
+                'created_at'=>$user->created_at,
+                'updated_at'=>$user->updated_at
+            ];
+
+            $userFavorit = FavoritSports::where('user_id',$user->id)->get();
+
+
+            $favoritSports = [];
+            foreach ($userFavorit as $sportId) {
+                $sport = Sport::find($sportId->sport_id);
+
+                if ($sport) {
+                    $user_details = UserDetails::find($user->id);
+
+                    $level = UserLevel::find($user_details->level_id);
+
+                    $favoritSports[] = [
+                        'sport_id' => $sportId->id,
+                        'name' => $sport->name,
+                        'level' => $level ? $level->name : null,
+                    ];
+                }
+            }
 
             return response()->json(
                 [
                     'message' => 'تم تسجيل الدخول بنجاح',
-
-                    'user' => $new_user
+                    'user' => $data,
+                    'token'=>$token->token,
+                    'favorit_sports' => $favoritSports,
                 ], 200);
         } else {
             // رسالة خطأ في حالة فشل عملية تسجيل الدخول
@@ -206,11 +271,25 @@ class AuthController extends Controller
 
         $new_user= User::with('token')->find($user->id);
 
+
+        $data = [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'is_verified' => $user->is_verified,
+            'phone' => $user->phone,
+            'longitude' => $user->longitude,
+            'latitude' => $user->latitude,
+
+            'created_at'=>$user->created_at,
+            'updated_at'=>$user->updated_at
+        ];
+
         // إرجاع التوكن في استجابة التسجيل
         return response()->json([
             'message' => 'تم تسجيل المستخدم بنجاح.',
-
-            'user'=>$new_user,
+            'user'=>$data,
+            'token'=>$new_user->token->token
 
         ]);
     }
