@@ -66,6 +66,22 @@ class User extends Authenticatable
         return $this->hasMany(FavoritSports::class,'user_id');
     }
 
+    public function followers(){
+        return $this->hasMany(Follower::class,'user_id');
+    }
+
+    public function points(){
+        return $this->hasMany(Point::class,'user_id');
+    }
+
+    public function wallet(){
+        return $this->hasOne(Wallet::class,'user_id');
+    }
+
+    public function matches(){
+        return $this->hasMany(Wallet::class,'user_id');
+    }
+
     public function getIsVerifiedAttribute($value)
     {
         return $value ? true : false;

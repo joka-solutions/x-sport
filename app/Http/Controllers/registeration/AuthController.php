@@ -4,6 +4,8 @@ namespace App\Http\Controllers\registeration;
 
 use App\Http\Controllers\Controller;
 use App\Models\FavoritSports;
+use App\Models\Follower;
+use App\Models\Matche;
 use App\Models\Sport;
 use App\Models\Token;
 use App\Models\UserDetails;
@@ -53,7 +55,6 @@ class AuthController extends Controller
         $user = User::where('email', $email)->first();
 
 
-
         $secretKey = Str::random(32);
 
         // توليد بيانات المستخدم الخاصة بالتوكن
@@ -73,8 +74,8 @@ class AuthController extends Controller
 
         $user_token->save();
 
-        $user_new = User::where('id', $user->id)->first();
-        $token = Token::where('user_id',$user->id)->first();
+        //$user_new = User::where('id', $user->id)->first();
+        //$token = Token::where('user_id', $user->id)->first();
 
 
         $verificationCode = Str::random(6);
@@ -83,36 +84,119 @@ class AuthController extends Controller
         $user->save();
 
 
-        try{
-        Mail::raw("رمز التحقق الخاص بك هو:   $verificationCode", function ($message) use ($user) {
-            $message->to($user->email)->subject('رمز التحقق');
-        });
+        try {
+            Mail::raw("رمز التحقق الخاص بك هو:   $verificationCode", function ($message) use ($user) {
+                $message->to($user->email)->subject('رمز التحقق');
+            });
 
         } catch (Swift_TransportException $e) {
             return response()->json(['error' => 'حدث خطأ أثناء إرسال البريد الإلكتروني']);
 
         }
 
-        $data = [
-            'id' => $user->id,
-            'name' => $user->name,
-            'email' => $user->email,
-            'is_verified' => $user->is_verified,
-            'phone' => $user->phone,
-            'longitude' => $user->longitude,
-            'latitude' => $user->latitude,
+//        $data = [
+//            'id' => $user->id,
+//            'name' => $user->name,
+//            'email' => $user->email,
+//            'is_verified' => $user->is_verified,
+//            'phone' => $user->phone,
+//            'longitude' => $user->longitude,
+//            'latitude' => $user->latitude,
+//
+//            'created_at'=>$user->created_at,
+//            'updated_at'=>$user->updated_at
+//        ];
+//
+//        $userFavorit = FavoritSports::where('user_id',$user->id)->get();
+//
+//
+//        $favoritSports = [];
+//        foreach ($userFavorit as $sportId) {
+//            $sport = Sport::find($sportId->sport_id);
+//
+//            if ($sport) {
+//                $user_details = UserDetails::find($user->id);
+//
+//                $level = UserLevel::find($user_details->level_id);
+//
+//                $favoritSports[] = [
+//                    'sport_id' => $sport->id,
+//                    'name' => $sport->name,
+//                    'level' => $level ? $level->name : null,
+//                    'point'=> $sportId->point,
+//
+//                ];
+//            }
+//        }
+//
+//        // إرجاع الاستجابة المناسبة (مثل رمز الاستجابة 200 ورسالة نجاح)
+//        return response()->json([
+//            'message' => 'تم إنشاء الحساب بنجاح',
+//            'user' => $data,
+//            'token'=>$token->token,
+//            'favoritSports'=>$favoritSports
+//        ], 200);
 
-            'created_at'=>$user->created_at,
-            'updated_at'=>$user->updated_at
+        $new_user = User::with(['token', 'followers', 'points', 'wallet'])->find($user->id);
+        //return $new_user;
+        $totalPoints = intval($new_user->points()->sum('point'));
+
+
+        $matchCount = Matche::where('user_id', $new_user->id)
+            ->orwhere('opponent_id', $new_user->id)
+            ->whereNotNull('result')
+            ->count();
+
+
+        $data = [
+            'id' => $new_user->id,
+            'name' => $new_user->name,
+            'email' => $new_user->email,
+            'is_verified' => $new_user->is_verified,
+            'phone' => $new_user->phone,
+            'longitude' => $new_user->longitude,
+            'latitude' => $new_user->latitude,
+            'image' => url($new_user->image), // تحديث هناو
+            'created_at' => $new_user->created_at,
+            'updated_at' => $new_user->updated_at
         ];
 
-        // إرجاع الاستجابة المناسبة (مثل رمز الاستجابة 200 ورسالة نجاح)
-        return response()->json([
-            'message' => 'تم إنشاء الحساب بنجاح',
-            'user' => $data,
-            'token'=>$token->token
-        ], 200);
-    }
+        $userFavorit = FavoritSports::where('user_id', $user->id)->get();
+
+
+        $favoritSports = [];
+        foreach ($userFavorit as $sportId)
+            $sport = Sport::find($sportId->sport_id);
+
+            if (isset($sport)) {
+                $user_details = UserDetails::find($user->id);
+
+                $level = UserLevel::find($user_details->level_id);
+
+                $favoritSports[] = [
+                    'sport_id' => $sport->id,
+                    'name' => $sport->name,
+                    'level' => $level ? $level->name : null,
+                    'point' => $sportId->point,
+
+
+                ];
+
+            }
+                return response()->json(
+                    [
+                        'message' => 'تم تسجيل الدخول بنجاح',
+                        'user' => $data,
+                        'token' => $new_user->token->token,
+                        'favorit_sports' => $favoritSports,
+                        'followers' => $new_user->followers->count(),
+                        'acadmies_points' => $totalPoints,
+                        'wallet_point' => $new_user->wallet ? $new_user->wallet->point : 0,
+                        'matchesCount' => $matchCount
+                    ], 200);
+            }
+
+
 
     public function verifyCode(Request $request)
     {
@@ -176,20 +260,31 @@ class AuthController extends Controller
             // التحقق من نجاح تسجيل الدخول واسترجاع بيانات المستخدم
             $user = Auth::user();
 
-            $new_user = User::find($user->id);
-            $token = Token::where('user_id',$user->id)->first();
+            $new_user = User::with(['token','followers','points','wallet'])->find($user->id);
+            //return $new_user;
+            $totalPoints = intval($new_user->points()->sum('point'));
+
+
+
+            $matchCount = Matche::where('user_id',$new_user->id)
+                             ->orwhere('opponent_id',$new_user->id)
+                             ->whereNotNull('result')
+                             ->count();
+
+
+
 
             $data = [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'is_verified' => $user->is_verified,
-                'phone' => $user->phone,
-                'longitude' => $user->longitude,
-                'latitude' => $user->latitude,
-
-                'created_at'=>$user->created_at,
-                'updated_at'=>$user->updated_at
+                'id' => $new_user->id,
+                'name' => $new_user->name,
+                'email' => $new_user->email,
+                'is_verified' => $new_user->is_verified,
+                'phone' => $new_user->phone,
+                'longitude' => $new_user->longitude,
+                'latitude' => $new_user->latitude,
+                'image' => url($new_user->image), // تحديث هناو
+                'created_at'=>$new_user->created_at,
+                'updated_at'=>$new_user->updated_at
             ];
 
             $userFavorit = FavoritSports::where('user_id',$user->id)->get();
@@ -199,15 +294,18 @@ class AuthController extends Controller
             foreach ($userFavorit as $sportId) {
                 $sport = Sport::find($sportId->sport_id);
 
-                if ($sport) {
+                if (isset($sport)) {
                     $user_details = UserDetails::find($user->id);
 
                     $level = UserLevel::find($user_details->level_id);
 
                     $favoritSports[] = [
-                        'sport_id' => $sportId->id,
+                        'sport_id' => $sport->id,
                         'name' => $sport->name,
                         'level' => $level ? $level->name : null,
+                        'point'=> $sportId->point,
+
+
                     ];
                 }
             }
@@ -216,8 +314,12 @@ class AuthController extends Controller
                 [
                     'message' => 'تم تسجيل الدخول بنجاح',
                     'user' => $data,
-                    'token'=>$token->token,
+                    'token'=>$new_user->token->token,
                     'favorit_sports' => $favoritSports,
+                    'followers'=>$new_user->followers->count(),
+                    'acadmies_points'=>$totalPoints ,
+                    'wallet_point'=>$new_user->wallet ? $new_user->wallet->point : 0,
+                    'matchesCount'=>$matchCount
                 ], 200);
         } else {
             // رسالة خطأ في حالة فشل عملية تسجيل الدخول
@@ -240,7 +342,7 @@ class AuthController extends Controller
         $newUser->email= $request->email;
         $newUser->longitude= $request->longitude;
         $newUser->latitude= $request->latitude;
-        $newUser->password= encrypt('my-google');
+        $newUser->password= bcrypt('my-google');
         $newUser->is_verified= false;
 
         $newUser->save();
@@ -269,28 +371,66 @@ class AuthController extends Controller
 
         $user_token->save();
 
-        $new_user= User::with('token')->find($user->id);
+        $new_user = User::with(['token','followers','points','wallet'])->find($user->id);
+        //return $new_user;
+        $totalPoints = intval($new_user->points()->sum('point'));
+
+
+
+        $matchCount = Matche::where('user_id',$new_user->id)
+            ->orwhere('opponent_id',$new_user->id)
+            ->whereNotNull('result')
+            ->count();
+
+
 
 
         $data = [
-            'id' => $user->id,
-            'name' => $user->name,
-            'email' => $user->email,
-            'is_verified' => $user->is_verified,
-            'phone' => $user->phone,
-            'longitude' => $user->longitude,
-            'latitude' => $user->latitude,
-
-            'created_at'=>$user->created_at,
-            'updated_at'=>$user->updated_at
+            'id' => $new_user->id,
+            'name' => $new_user->name,
+            'email' => $new_user->email,
+            'is_verified' => $new_user->is_verified,
+            'phone' => $new_user->phone,
+            'longitude' => $new_user->longitude,
+            'latitude' => $new_user->latitude,
+            'image' => url($new_user->image), // تحديث هناو
+            'created_at'=>$new_user->created_at,
+            'updated_at'=>$new_user->updated_at
         ];
 
-        // إرجاع التوكن في استجابة التسجيل
-        return response()->json([
-            'message' => 'تم تسجيل المستخدم بنجاح.',
-            'user'=>$data,
-            'token'=>$new_user->token->token
+        $userFavorit = FavoritSports::where('user_id',$user->id)->get();
 
-        ]);
+
+        $favoritSports = [];
+        foreach ($userFavorit as $sportId) {
+            $sport = Sport::find($sportId->sport_id);
+
+            if (isset($sport)) {
+                $user_details = UserDetails::find($user->id);
+
+                $level = UserLevel::find($user_details->level_id);
+
+                $favoritSports[] = [
+                    'sport_id' => $sport->id,
+                    'name' => $sport->name,
+                    'level' => $level ? $level->name : null,
+                    'point'=> $sportId->point,
+
+
+                ];
+            }
+        }
+
+        return response()->json(
+            [
+                'message' => 'تم تسجيل الدخول بنجاح',
+                'user' => $data,
+                'token'=>$new_user->token->token,
+                'favorit_sports' => $favoritSports,
+                'followers'=>$new_user->followers->count(),
+                'acadmies_points'=>$totalPoints ,
+                'wallet_point'=>$new_user->wallet ? $new_user->wallet->point : 0,
+                'matchesCount'=>$matchCount
+            ], 200);
     }
 }

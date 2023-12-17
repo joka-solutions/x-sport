@@ -4,6 +4,7 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\FavoritSports;
+use App\Models\Matche;
 use App\Models\Sport;
 use App\Models\Token;
 use App\Models\User;
@@ -20,7 +21,81 @@ class UserController extends Controller
         return response()->json($users);
     }
 
+    public function getUserWithToken(Request $request)
+    {
+        $token = $request->header('Authorization');
+        $cleanToken = str_replace('Bearer ', '', $token);
 
+        // فحص صحة رمز التوكن
+        $user_token = Token::where('token', $cleanToken)->first();
+
+        if (!isset($user_token)) {
+            return response()->json(['message' => 'رمز التوكن غير صحيح'], 400);
+        }
+
+
+        $userId = $user_token->user_id;
+        $new_user = User::with(['token', 'followers', 'points', 'wallet'])->find($userId);
+        //return $new_user;
+        $totalPoints = intval($new_user->points()->sum('point'));
+
+
+        $matchCount = Matche::where('user_id', $new_user->id)
+            ->orwhere('opponent_id', $new_user->id)
+            ->whereNotNull('result')
+            ->count();
+
+
+        $data = [
+            'id' => $new_user->id,
+            'name' => $new_user->name,
+            'email' => $new_user->email,
+            'is_verified' => $new_user->is_verified,
+            'phone' => $new_user->phone,
+            'longitude' => $new_user->longitude,
+            'latitude' => $new_user->latitude,
+            'image' => url($new_user->image), // تحديث هناو
+            'created_at' => $new_user->created_at,
+            'updated_at' => $new_user->updated_at
+        ];
+
+        $userFavorit = FavoritSports::where('user_id', $userId)->get();
+
+
+        $favoritSports = [];
+        foreach ($userFavorit as $sportId) {
+            $sport = Sport::find($sportId->sport_id);
+
+            if (isset($sport)) {
+                $user_details = UserDetails::find($userId);
+
+                $level = UserLevel::find($user_details->level_id);
+
+                $favoritSports[] = [
+                    'sport_id' => $sport->id,
+                    'name' => $sport->name,
+                    'level' => $level ? $level->name : null,
+                    'point' => $sportId->point,
+
+
+                ];
+
+            }
+        }
+        return response()->json(
+            [
+                'message' => 'تم تسجيل الدخول بنجاح',
+                'user' => $data,
+                'token'=>$new_user->token->token,
+                'favorit_sports' => $favoritSports,
+                'followers'=>$new_user->followers->count(),
+                'acadmies_points'=>$totalPoints ,
+                'wallet_point'=>$new_user->wallet ? $new_user->wallet->point : 0,
+                'matchesCount'=>$matchCount
+            ], 200);
+
+
+    }
 
 
     public function store(Request $request)
@@ -102,15 +177,17 @@ class UserController extends Controller
 
         $favoritSports = [];
         foreach ($selectedSports as $sportId) {
+
             $sport = Sport::find($sportId);
             if ($sport) {
                 $user_details = UserDetails::find($userId);
                 $level = UserLevel::find($user_details->level_id);
 
                 $favoritSports[] = [
-                    'sport_id' => $sportId,
+                    'sport_id' => $sport->id,
                     'name' => $sport->name,
                     'level' => $level ? $level->name : null,
+                    'point'=> 0,
                 ];
             }
         }

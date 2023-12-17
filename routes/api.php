@@ -31,6 +31,8 @@ Route::post('/user_details', [UserController::class, 'store'])->name('store');
 Route::get('/get_sport', [SportController::class, 'get_sport'])->name('get_sport');
 Route::get('/get_user_level', [LevelController::class, 'get_user_level'])->name('get_user_level');
 Route::get('/get_users', [UserController::class, 'get_users'])->name('get_users');
+Route::get('/get_user_with_token', [UserController::class, 'getUserWithToken'])->name('getUserWithToken');
+
 
 Route::get('/get_stadiums', [StadiumController::class, 'get_stadiums'])->name('get_stadiums');
 Route::get('/get_acadimes', [AcadimeController::class, 'get_acadimes'])->name('get_acadimes');
