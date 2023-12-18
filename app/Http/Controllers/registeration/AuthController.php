@@ -146,6 +146,11 @@ class AuthController extends Controller
             ->orwhere('opponent_id', $new_user->id)
             ->whereNotNull('result')
             ->count();
+        $image = $new_user->image;
+        if ($image == null){
+            $image = "";
+        }
+
 
 
         $data = [
@@ -156,7 +161,7 @@ class AuthController extends Controller
             'phone' => $new_user->phone,
             'longitude' => $new_user->longitude,
             'latitude' => $new_user->latitude,
-            'image' => url($new_user->image), // تحديث هناو
+            'image' => $image, // تحديث هناو
             'created_at' => $new_user->created_at,
             'updated_at' => $new_user->updated_at
         ];
@@ -271,7 +276,12 @@ class AuthController extends Controller
                              ->whereNotNull('result')
                              ->count();
 
-
+            $image = $new_user->image;
+            if ($image == null){
+                $image = "";
+            }else{
+                $image = url( $new_user->image);
+            }
 
 
             $data = [
@@ -282,7 +292,7 @@ class AuthController extends Controller
                 'phone' => $new_user->phone,
                 'longitude' => $new_user->longitude,
                 'latitude' => $new_user->latitude,
-                'image' => url($new_user->image), // تحديث هناو
+                'image' => $image, // تحديث هناو
                 'created_at'=>$new_user->created_at,
                 'updated_at'=>$new_user->updated_at
             ];
