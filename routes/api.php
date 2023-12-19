@@ -18,7 +18,22 @@ use App\Http\Controllers\Matches\MatchController;
 //});
 
 Route::get('/test_api', function (){
-    return response()->json(['message'=>'success'],200);
+    //return response()->json(['message'=>'success'],200);
+    $sports = \App\Models\Sport::with('preferences.options')->get();
+
+    $data = $sports->map(function ($sport) {
+        return [
+            'id' => $sport->id,
+            'name' => $sport->name,
+            'performance'=>$sport->preferences
+            // يمكنك إضافة المزيد من البيانات هنا إذا أردت
+        ];
+    });
+    return response()->json($data);
+
+//    $sports = \App\Models\Sport::with('preferences.options')->get();
+//    return $sports;
+
 });
 
 Route::post('/register', [AuthController::class, 'register'])->name('register');

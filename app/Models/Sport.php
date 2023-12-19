@@ -16,4 +16,8 @@ class Sport extends Model
     {
         return $this->belongsToMany(Sport::class, 'sport_id');
     }
+
+    public function preferences() {
+        return $this->hasMany(SportPreference::class, 'sport_id');
+    }
 }

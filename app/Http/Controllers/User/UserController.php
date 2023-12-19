@@ -59,29 +59,67 @@ class UserController extends Controller
             'updated_at' => $new_user->updated_at
         ];
 
+//        $userFavorit = FavoritSports::where('user_id', $userId)->get();
+//
+//
+//        $favoritSports = [];
+//        foreach ($userFavorit as $sportId) {
+//            $sport = Sport::find($sportId->sport_id);
+//
+//            if (isset($sport)) {
+//                $user_details = UserDetails::find($userId);
+//
+//                $level = UserLevel::find($user_details->level_id);
+//
+//                $favoritSports[] = [
+//                    'sport_id' => $sport->id,
+//                    'name' => $sport->name,
+//                    'level' => $level ? $level->name : null,
+//                    'point' => $sportId->point,
+//
+//
+//                ];
+//
+//            }
+//        }
+
         $userFavorit = FavoritSports::where('user_id', $userId)->get();
-
-
         $favoritSports = [];
+
         foreach ($userFavorit as $sportId) {
             $sport = Sport::find($sportId->sport_id);
 
             if (isset($sport)) {
                 $user_details = UserDetails::find($userId);
-
                 $level = UserLevel::find($user_details->level_id);
 
-                $favoritSports[] = [
+                // Load preferences and options for the current sport
+                $sport->load('preferences.options');
+
+                $sportDetails = [
                     'sport_id' => $sport->id,
                     'name' => $sport->name,
                     'level' => $level ? $level->name : null,
                     'point' => $sportId->point,
-
-
+                    'preferences' => $sport->preferences->map(function ($preference) {
+                        return [
+                            'id' => $preference->id,
+                            'name' => $preference->name,
+                            'options' => $preference->options->map(function ($option) {
+                                return [
+                                    'id' => $option->id,
+                                    'name' => $option->name,
+                                    // يمكنك إضافة المزيد من البيانات هنا إذا أردت
+                                ];
+                            })
+                        ];
+                    })
                 ];
 
+                $favoritSports[] = $sportDetails;
             }
         }
+
         return response()->json(
             [
                 'message' => 'تم تسجيل الدخول بنجاح',
@@ -175,10 +213,30 @@ class UserController extends Controller
             'updated_at'=>$user->updated_at
         ];
 
-        $favoritSports = [];
-        foreach ($selectedSports as $sportId) {
+//        $favoritSports = [];
+//        foreach ($selectedSports as $sportId) {
+//
+//            $sport = Sport::find($sportId);
+//            if ($sport) {
+//                $user_details = UserDetails::find($userId);
+//                $level = UserLevel::find($user_details->level_id);
+//
+//                $favoritSports[] = [
+//                    'sport_id' => $sport->id,
+//                    'name' => $sport->name,
+//                    'level' => $level ? $level->name : null,
+//                    'point'=> 0,
+//                ];
+//            }
+//        }
 
-            $sport = Sport::find($sportId);
+        $favoritSports = [];
+
+        foreach ($selectedSports as $sportId) {
+            $sport = Sport::with(['preferences' => function ($query) {
+                $query->with('options');
+            }])->find($sportId);
+
             if ($sport) {
                 $user_details = UserDetails::find($userId);
                 $level = UserLevel::find($user_details->level_id);
@@ -187,21 +245,24 @@ class UserController extends Controller
                     'sport_id' => $sport->id,
                     'name' => $sport->name,
                     'level' => $level ? $level->name : null,
-                    'point'=> 0,
+                    'point' => 0,
+                    'preferences' => $sport->preferences->map(function ($preference) {
+                        return [
+                            'id' => $preference->id,
+                            'name' => $preference->name,
+                            'options' => $preference->options->map(function ($option) {
+                                return [
+                                    'id' => $option->id,
+                                    'name' => $option->name,
+                                    // يمكنك إضافة المزيد من البيانات هنا إذا أردت
+                                ];
+                            })
+                        ];
+                    })
                 ];
             }
         }
-//        $level_id = UserDetails::where('user_id',$userId)->get();
-//        $level = [];
-//        foreach ($level_id as $levelId) {
-//            $levels = UserLevel::find($levelId->level_id);
-//            if ($levels) {
-//                $level[] = [
-//                    'level_id' => $levelId->level_id,
-//                    'name' => $levels->name,
-//                ];
-//            }
-//        }
+
 
         $response = [
             'message' => 'تم تخزين بيانات المستخدم بنجاح.',

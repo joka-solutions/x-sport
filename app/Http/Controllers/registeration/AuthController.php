@@ -297,40 +297,91 @@ class AuthController extends Controller
                 'updated_at'=>$new_user->updated_at
             ];
 
-            $userFavorit = FavoritSports::where('user_id',$user->id)->get();
+//            $userFavorit = FavoritSports::where('user_id',$user->id)->get();
+//
+//
+//            $favoritSports = [];
+//            foreach ($userFavorit as $sportId) {
+//                $sport = Sport::find($sportId->sport_id);
+//
+//                if (isset($sport)) {
+//                    $user_details = UserDetails::find($user->id);
+//
+//                    $level = UserLevel::find($user_details->level_id);
+//
+//                    $favoritSports[] = [
+//                        'sport_id' => $sport->id,
+//                        'name' => $sport->name,
+//                        'level' => $level ? $level->name : null,
+//                        'point'=> $sportId->point,
+//
+//
+//                    ];
+//                }
+//            }
+//
+//            return response()->json(
+//                [
+//                    'message' => 'تم تسجيل الدخول بنجاح',
+//                    'user' => $data,
+//                    'token'=>$new_user->token->token,
+//                    'favorit_sports' => $favoritSports,
+//                    'followers'=>$new_user->followers->count(),
+//                    'acadmies_points'=>$totalPoints ,
+//                    'wallet_point'=>$new_user->wallet ? $new_user->wallet->point : 0,
+//                    'matchesCount'=>$matchCount
+//                ], 200);
 
-
+            $userFavorit = FavoritSports::where('user_id', $user->id)->get();
             $favoritSports = [];
+
             foreach ($userFavorit as $sportId) {
                 $sport = Sport::find($sportId->sport_id);
 
                 if (isset($sport)) {
                     $user_details = UserDetails::find($user->id);
-
                     $level = UserLevel::find($user_details->level_id);
 
-                    $favoritSports[] = [
+                    // Load preferences and options for the current sport
+                    $sport->load('preferences.options');
+
+                    $sportDetails = [
                         'sport_id' => $sport->id,
                         'name' => $sport->name,
                         'level' => $level ? $level->name : null,
-                        'point'=> $sportId->point,
-
-
+                        'point' => $sportId->point,
+                        'preferences' => $sport->preferences->map(function ($preference) {
+                            return [
+                                'id' => $preference->id,
+                                'name' => $preference->name,
+                                'options' => $preference->options->map(function ($option) {
+                                    return [
+                                        'id' => $option->id,
+                                        'name' => $option->name,
+                                        // يمكنك إضافة المزيد من البيانات هنا إذا أردت
+                                    ];
+                                })
+                            ];
+                        })
                     ];
+
+                    $favoritSports[] = $sportDetails;
                 }
             }
 
-            return response()->json(
-                [
-                    'message' => 'تم تسجيل الدخول بنجاح',
-                    'user' => $data,
-                    'token'=>$new_user->token->token,
-                    'favorit_sports' => $favoritSports,
-                    'followers'=>$new_user->followers->count(),
-                    'acadmies_points'=>$totalPoints ,
-                    'wallet_point'=>$new_user->wallet ? $new_user->wallet->point : 0,
-                    'matchesCount'=>$matchCount
-                ], 200);
+// البقية من الكود الخاص بك
+
+            return response()->json([
+                'message' => 'تم تسجيل الدخول بنجاح',
+                'user' => $data,
+                'token' => $new_user->token->token,
+                'favorit_sports' => $favoritSports,
+                'followers' => $new_user->followers->count(),
+                'acadmies_points' => $totalPoints,
+                'wallet_point' => $new_user->wallet ? $new_user->wallet->point : 0,
+                'matchesCount' => $matchCount
+            ], 200);
+
         } else {
             // رسالة خطأ في حالة فشل عملية تسجيل الدخول
             return response()->json(['message' => 'بيانات تسجيل الدخول غير صحيحة'], 401);
