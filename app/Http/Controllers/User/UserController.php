@@ -5,13 +5,16 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Models\FavoritSports;
 use App\Models\Matche;
+use App\Models\PreferenceOption;
 use App\Models\Sport;
+use App\Models\SportPreference;
 use App\Models\Token;
 use App\Models\User;
 use App\Models\UserDetails;
 
 use App\Models\UserLevel;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Intervention\Image\ImageManager;
 
 class UserController extends Controller
@@ -83,7 +86,8 @@ class UserController extends Controller
 //            }
 //        }
 
-        $userFavorit = FavoritSports::where('user_id', $userId)->get();
+        $userFavorit = FavoritSports::where('user_id', $userId)->with(['use','postion','time'])->get();
+       // return $userFavorit;
         $favoritSports = [];
 
         foreach ($userFavorit as $sportId) {
@@ -119,6 +123,124 @@ class UserController extends Controller
                 $favoritSports[] = $sportDetails;
             }
         }
+      //  return $favoritSports;
+
+        //get preference options for all sport for user
+
+
+
+//        $userFavourites = FavoritSports::where('user_id', $userId)->get();
+//        $favourites = [];
+//
+//        foreach ($userFavourites as $favourite) {
+//            $data2 = [];
+//
+//            if ($favourite->use) {
+//                $data2['use_favourit'] = [
+//                    'id' => $favourite->use->id,
+//                    'sport_id' => $favourite->use->sport_id,
+//                    'preference_id' => $favourite->use->preference_id,
+//                    'preference_name' => $favourite->use->preference ? $favourite->use->preference->name : "",
+//                    'name' => $favourite->use->name,
+//                    'created_at' => $favourite->use->created_at,
+//                    'updated_at' => $favourite->use->updated_at,
+//                ];
+//            } else {
+//                $data2['use_favourit'] = " ";
+//            }
+//
+//            if ($favourite->postion) {
+//                $data2['postion_favourit'] = [
+//                    'id' => $favourite->postion->id,
+//                    'sport_id' => $favourite->postion->sport_id,
+//                    'preference_id' => $favourite->postion->preference_id,
+//                    'preference_name' => $favourite->postion->preference ? $favourite->postion->preference->name : "",
+//                    'name' => $favourite->postion->name,
+//                    'created_at' => $favourite->postion->created_at,
+//                    'updated_at' => $favourite->postion->updated_at,
+//                ];
+//            } else {
+//                $data2['postion_favourit'] = " ";
+//            }
+//
+//            if ($favourite->time) {
+//                $data2['time_favourit'] = [
+//                    'id' => $favourite->time->id,
+//                    'sport_id' => $favourite->time->sport_id,
+//                    'preference_id' => $favourite->time->preference_id,
+//                    'preference_name' => $favourite->time->preference ? $favourite->time->preference->name : "",
+//                    'name' => $favourite->time->name,
+//                    'created_at' => $favourite->time->created_at,
+//                    'updated_at' => $favourite->time->updated_at,
+//                ];
+//            } else {
+//                $data2['time_favourit'] = " ";
+//            }
+//
+//            $favourites[] = $data2;
+//        }
+
+        //return response()->json(['prference_selcted'=>$favourites ]);
+
+//////new code
+        $userFavorit = FavoritSports::where('user_id', $userId)->with(['use', 'postion', 'time'])->get();
+        $favoritSports = [];
+
+        foreach ($userFavorit as $sportId) {
+            $sport = Sport::find($sportId->sport_id);
+
+            if ($sport) {
+                $user_details = UserDetails::find($userId);
+                $level = UserLevel::find($user_details->level_id);
+
+                $sport = $sport->load('preferences.options');
+
+                $sportDetails = [
+                    'sport_id' => $sport->id,
+                    'name' => $sport->name,
+                    'level' => $level ? $level->name : null,
+                    'point' => $sportId->point,
+                    'preferences' => $sport->preferences->map(function ($preference) use ($sportId) {
+                        $selected = null;
+                        switch ($preference->name) {
+                            case 'اليد المفضلة':
+                                $selected = $sportId->use ? $sportId->use->name : "";
+                                break;
+                            case 'المركز المفضل':
+                                $selected = $sportId->postion ? $sportId->postion->name : "";
+                                break;
+                            case 'الوقت المفضل':
+                                $selected = $sportId->time ? $sportId->time->name : "";
+                                break;
+                            default:
+                                break;
+                        }
+
+                        return [
+                            'id' => $preference->id,
+                            'name' => $preference->name,
+                            'selected' => $selected,
+                            'options' => $preference->options->map(function ($option) {
+                                return [
+                                    'id' => $option->id,
+                                    'name' => $option->name,
+                                ];
+                            }),
+                        ];
+                    }),
+                ];
+
+                $favoritSports[] = $sportDetails;
+            }
+        }
+
+       // return $favoritSports;
+
+
+
+        ///////////////////////////
+
+
 
         return response()->json(
             [

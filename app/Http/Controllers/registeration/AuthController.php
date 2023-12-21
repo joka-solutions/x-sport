@@ -332,44 +332,97 @@ class AuthController extends Controller
 //                    'matchesCount'=>$matchCount
 //                ], 200);
 
-            $userFavorit = FavoritSports::where('user_id', $user->id)->get();
+
+
+//            $userFavorit = FavoritSports::where('user_id', $user->id)->get();
+//            $favoritSports = [];
+//
+//            foreach ($userFavorit as $sportId) {
+//                $sport = Sport::find($sportId->sport_id);
+//
+//                if (isset($sport)) {
+//                    $user_details = UserDetails::find($user->id);
+//                    $level = UserLevel::find($user_details->level_id);
+//
+//                    // Load preferences and options for the current sport
+//                    $sport->load('preferences.options');
+//
+//                    $sportDetails = [
+//                        'sport_id' => $sport->id,
+//                        'name' => $sport->name,
+//                        'level' => $level ? $level->name : null,
+//                        'point' => $sportId->point,
+//                        'preferences' => $sport->preferences->map(function ($preference) {
+//                            return [
+//                                'id' => $preference->id,
+//                                'name' => $preference->name,
+//                                'options' => $preference->options->map(function ($option) {
+//                                    return [
+//                                        'id' => $option->id,
+//                                        'name' => $option->name,
+//                                        // يمكنك إضافة المزيد من البيانات هنا إذا أردت
+//                                    ];
+//                                })
+//                            ];
+//                        })
+//                    ];
+//
+//                    $favoritSports[] = $sportDetails;
+//                }
+//            }
+
+    // get sport favouirts with preference selected
+            $userFavorit = FavoritSports::where('user_id', $user->id)->with(['use', 'postion', 'time'])->get();
             $favoritSports = [];
 
             foreach ($userFavorit as $sportId) {
                 $sport = Sport::find($sportId->sport_id);
 
-                if (isset($sport)) {
+                if ($sport) {
                     $user_details = UserDetails::find($user->id);
                     $level = UserLevel::find($user_details->level_id);
 
-                    // Load preferences and options for the current sport
-                    $sport->load('preferences.options');
+                    $sport = $sport->load('preferences.options');
 
                     $sportDetails = [
                         'sport_id' => $sport->id,
                         'name' => $sport->name,
                         'level' => $level ? $level->name : null,
                         'point' => $sportId->point,
-                        'preferences' => $sport->preferences->map(function ($preference) {
+                        'preferences' => $sport->preferences->map(function ($preference) use ($sportId) {
+                            $selected = null;
+                            switch ($preference->name) {
+                                case 'اليد المفضلة':
+                                    $selected = $sportId->use ? $sportId->use->name : "";
+                                    break;
+                                case 'المركز المفضل':
+                                    $selected = $sportId->postion ? $sportId->postion->name : "";
+                                    break;
+                                case 'الوقت المفضل':
+                                    $selected = $sportId->time ? $sportId->time->name : "";
+                                    break;
+                                default:
+                                    break;
+                            }
+
                             return [
                                 'id' => $preference->id,
                                 'name' => $preference->name,
+                                'selected' => $selected,
                                 'options' => $preference->options->map(function ($option) {
                                     return [
                                         'id' => $option->id,
                                         'name' => $option->name,
-                                        // يمكنك إضافة المزيد من البيانات هنا إذا أردت
                                     ];
-                                })
+                                }),
                             ];
-                        })
+                        }),
                     ];
 
                     $favoritSports[] = $sportDetails;
                 }
             }
 
-// البقية من الكود الخاص بك
 
             return response()->json([
                 'message' => 'تم تسجيل الدخول بنجاح',

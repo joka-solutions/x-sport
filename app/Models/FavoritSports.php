@@ -11,8 +11,23 @@ class FavoritSports extends Model
     protected $fillable=[
         'user_id',
         'sport_id',
-        'point'
+        'point',
+        'use_option_id',
+        'postion_option_id',
+        'time_option_id'
     ];
+
+    public function use() {
+        return $this->belongsTo(PreferenceOption::class, 'use_option_id');
+    }
+
+    public function postion() {
+        return $this->belongsTo(PreferenceOption::class, 'postion_option_id');
+    }
+
+    public function time() {
+        return $this->belongsTo(PreferenceOption::class, 'time_option_id');
+    }
 
 
 }
