@@ -551,8 +551,62 @@ class UserController extends Controller
             }
         }
 
+        $favoritSports = [];
 
-        return response()->json(['message' => 'تم تحديث بيانات المستخدم بنجاح'], 200);
+        foreach ($selectedSports as $sportId) {
+            $sport = Sport::with(['preferences' => function ($query) {
+                $query->with('options');
+            }])->find($sportId);
+
+            if ($sport) {
+                $user_details = UserDetails::find($userId);
+                $level = UserLevel::find($user_details->level_id);
+
+                $favoritSports[] = [
+                    'sport_id' => $sport->id,
+                    'name' => $sport->name,
+                    'level' => $level ? $level->name : null,
+                    'point' => 0,
+                    'preferences' => $sport->preferences->map(function ($preference) {
+                        return [
+                            'id' => $preference->id,
+                            'name' => $preference->name,
+                            'options' => $preference->options->map(function ($option) {
+                                return [
+                                    'id' => $option->id,
+                                    'name' => $option->name,
+                                    // يمكنك إضافة المزيد من البيانات هنا إذا أردت
+                                ];
+                            })
+                        ];
+                    })
+                ];
+            }
+        }
+
+        $data = [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'is_verified' => $user->is_verified,
+            'phone' => $user->phone,
+            'longitude' => $user->longitude,
+            'latitude' => $user->latitude,
+            'image' => $user->image ? url($user->image) : '', // تحديث هناو
+            'created_at'=>$user->created_at,
+            'updated_at'=>$user->updated_at
+        ];
+
+
+        $response = [
+            'message' => 'تم تحديث بيانات المستخدم بنجاح.',
+            'user' => $data,
+            'token' => $user_token->token,
+            'favorit_sports' => $favoritSports,
+
+        ];
+        return response()->json($response, 200);
+      //  return response()->json(['message' => 'تم تحديث بيانات المستخدم بنجاح'], 200);
     }
 
 }
