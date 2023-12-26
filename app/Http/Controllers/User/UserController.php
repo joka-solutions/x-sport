@@ -284,7 +284,8 @@ class UserController extends Controller
         }
 
         $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif'];
-        $type = $file->getClientOriginalExtension();
+        //$type = $file->getClientOriginalExtension();
+        $type = $request->input('type');
 
         if (!in_array($type, $allowedExtensions)) {
             return response()->json([
@@ -433,6 +434,125 @@ class UserController extends Controller
         }
 
         return response()->json(['message' => 'تم تحديث البيانات بنجاح.'], 200);
+    }
+
+
+    public function updateUserProfile(Request $request)
+    {
+        $token = $request->header('Authorization');
+        $cleanToken = str_replace('Bearer ', '', $token);
+
+        // فحص صحة رمز التوكن
+        $user_token = Token::where('token', $cleanToken)->first();
+        if (!isset($user_token)) {
+            return response()->json(['message' => 'رمز التوكن غير صحيح'], 400);
+        }
+
+        $userId = $user_token->user_id;
+
+        // تحديث البيانات الجديدة للمستخدم
+        $user = User::find($userId);
+
+        $image = $request->file('image');
+        if (!empty($image)) {
+
+            $binaryImage = file_get_contents($image->getRealPath());
+
+            $imageFolderPath = public_path('images');
+            if (!file_exists($imageFolderPath)) {
+                mkdir($imageFolderPath, 0777, true);
+            }
+
+            $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif'];
+            $type = $request->input('type');
+
+            if (!in_array($type, $allowedExtensions)) {
+                return response()->json([
+                    'message' => 'صيغة الصورة غير مدعومة. يرجى تحميل صورة بصيغة مدعومة مثل JPG أو PNG أو GIF.',
+                ], 400);
+            }
+
+            $fileName = uniqid() . '.' . $type;
+            $filePath = $imageFolderPath . '/' . $fileName;
+            file_put_contents($filePath, $binaryImage);
+
+            $user->image = 'images/'.$fileName;
+
+        }
+
+        // التحقق من وجود قيمة غير فارغة لاسم المستخدم
+
+        $username = $request->input('username');
+        if (!empty($username)) {
+            $user->name = $username;
+        }
+
+        // التحقق من وجود قيمة غير فارغة للجوال
+        $phone = $request->input('phone');
+        if (!empty($phone)) {
+            $user->phone = $phone;
+        }
+
+        // التحقق من وجود قيمة غير فارغة للجنس
+        $gender = $request->input('gender');
+        if (!empty($gender)) {
+            $user->gender = $gender;
+        }
+
+        $user->save();
+
+        $selectedSports = $request->input('selected_sports');
+        $deletedSports = $request->input('deleted_sports');
+//return $selectedSports;
+
+            foreach ($selectedSports as $sportId) {
+                if ($sportId != null) {
+                    // التحقق مما إذا كانت الرياضة مفضلة بالفعل للمستخدم
+                    $existingFavoriteSport = FavoritSports::where('user_id', $userId)
+                        ->where('sport_id', $sportId)
+                        ->first();
+
+                    if ($existingFavoriteSport) {
+                        continue; // تخطي الرياضة إذا كانت مفضلة بالفعل
+                    }
+
+                    // إنشاء رياضة مفضلة جديدة
+                    $favoriteSport = new FavoritSports();
+                    $favoriteSport->user_id = $userId;
+                    $favoriteSport->sport_id = $sportId;
+                    $favoriteSport->save();
+
+                    $data = new UserDetails();
+
+                    $data->user_id= $userId;
+                    $data->sport_id= $sportId;
+                    $data->level_id= 1;
+
+                    $data->save();
+                }
+
+
+            }
+
+
+
+
+        // حذف الرياضات المفضلة
+        if ($deletedSports) {
+            foreach ($deletedSports as $sportId) {
+                // البحث عن الرياضة المفضلة للحذف
+                $favoriteSport = FavoritSports::where('user_id', $userId)
+                    ->where('sport_id', $sportId)
+                    ->first();
+
+                if ($favoriteSport) {
+                    $favoriteSport->delete();
+                }
+            }
+        }
+
+
+        return response()->json(['message' => 'تم تحديث بيانات المستخدم بنجاح'], 200);
     }
 
 }

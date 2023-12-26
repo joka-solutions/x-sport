@@ -51,7 +51,7 @@ Route::get('/get_user_with_token', [UserController::class, 'getUserWithToken'])-
 
 Route::get('/get_stadiums', [StadiumController::class, 'get_stadiums'])->name('get_stadiums');
 Route::get('/get_acadimes', [AcadimeController::class, 'get_acadimes'])->name('get_acadimes');
-Route::post('/update_user_prodile/{id}', [UserController::class, 'update_profile'])->name('update_profile');
+Route::post('/update_user_prodile', [UserController::class, 'updateUserProfile'])->name('update_profile');
 
 Route::get('/get_metch_type', [FrindlyMatchController::class, 'get_metch_type'])->name('get_metch_type');
 Route::post('/create_match', [FrindlyMatchController::class, 'store_match'])->name('store_match');

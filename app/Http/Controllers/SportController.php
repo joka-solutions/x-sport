@@ -43,9 +43,18 @@ class SportController extends Controller
                                         ->where('sport_id',$sport_id)
                                         ->first();
         if ($sport_favourit) {
-            $sport_favourit->use_option_id = $uses_option_id;
-            $sport_favourit->postion_option_id = $postion_option_id;
-            $sport_favourit->time_option_id = $time_option_id;
+            if ($uses_option_id){
+                $sport_favourit->use_option_id = $uses_option_id;
+            }
+
+            if ($postion_option_id){
+                $sport_favourit->postion_option_id = $postion_option_id;
+            }
+
+            if ($time_option_id){
+                $sport_favourit->time_option_id = $time_option_id;
+            }
+
 
             $sport_favourit->save();
 
