@@ -60,3 +60,6 @@ Route::post('/join_match/{id}', [MatchController::class, 'join_match'])->name('j
 Route::get('/get_Competitive_matches', [CompetitiveMatchController::class, 'get_Competitive_matches'])->name('get_Competitive_matches');
 
 Route::post('/preferences', [SportController::class, 'preferences'])->name('preferences');
+
+
+

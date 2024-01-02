@@ -55,6 +55,7 @@ class UserController extends Controller
             'email' => $new_user->email,
             'is_verified' => $new_user->is_verified,
             'phone' => $new_user->phone,
+            'gender' => $new_user->gender,
             'longitude' => $new_user->longitude,
             'latitude' => $new_user->latitude,
             'image' => url($new_user->image), // تحديث هناو
@@ -299,25 +300,26 @@ class UserController extends Controller
 
         $user = User::where('id', $userId)->first();
         foreach ($selectedSports as $sportId) {
-             $favoritSports = new FavoritSports();
+            $existingFavoriteSport = FavoritSports::where('user_id', $userId)->where('sport_id', $sportId)->first();
+
+            if (!$existingFavoriteSport) {
+                $favoritSports = new FavoritSports();
+                $favoritSports->user_id = $userId;
+                $favoritSports->sport_id = $sportId;
+                $favoritSports->save();
+
+                $data = new UserDetails();
+                $data->user_id= $userId;
+                $data->sport_id= $sportId;
+                $data->level_id= 1;
 
 
-             $favoritSports->user_id= $userId;
-             $favoritSports->sport_id= $sportId;
-
-             $favoritSports->save();
-
-  //  $userDetail->favoriteSports()->attach($sportId, ['user_id' => $userId]);
-}
+                $data->save();
+            }
+        }
 
 
-        $data = new UserDetails();
-        $data->user_id= $userId;
-        $data->sport_id= $sportId;
-        $data->level_id= 1;
 
-
-        $data->save();
 
         $userImage = User::findOrFail($userId);
         $userImage->image = 'images/'.$fileName;
@@ -502,54 +504,82 @@ class UserController extends Controller
         $user->save();
 
         $selectedSports = $request->input('selected_sports');
-        $deletedSports = $request->input('deleted_sports');
-//return $selectedSports;
+//        $deletedSports = $request->input('deleted_sports');
+////return $selectedSports;
+//
+//            foreach ($selectedSports as $sportId) {
+//                if ($sportId != null) {
+//                    // التحقق مما إذا كانت الرياضة مفضلة بالفعل للمستخدم
+//                    $existingFavoriteSport = FavoritSports::where('user_id', $userId)
+//                        ->where('sport_id', $sportId)
+//                        ->first();
+//
+//                    if ($existingFavoriteSport) {
+//                        continue; // تخطي الرياضة إذا كانت مفضلة بالفعل
+//                    }
+//
+//                    // إنشاء رياضة مفضلة جديدة
+//                    $favoriteSport = new FavoritSports();
+//                    $favoriteSport->user_id = $userId;
+//                    $favoriteSport->sport_id = $sportId;
+//                    $favoriteSport->save();
+//
+//                    $data = new UserDetails();
+//
+//                    $data->user_id= $userId;
+//                    $data->sport_id= $sportId;
+//                    $data->level_id= 1;
+//
+//                    $data->save();
+//                }
+//
+//
+//            }
+//
+//
+//
+//
+//        // حذف الرياضات المفضلة
+//        if ($deletedSports) {
+//            foreach ($deletedSports as $sportId) {
+//                // البحث عن الرياضة المفضلة للحذف
+//                $favoriteSport = FavoritSports::where('user_id', $userId)
+//                    ->where('sport_id', $sportId)
+//                    ->first();
+//
+//                if ($favoriteSport) {
+//                    $favoriteSport->delete();
+//                }
+//            }
+//        }
 
-            foreach ($selectedSports as $sportId) {
-                if ($sportId != null) {
-                    // التحقق مما إذا كانت الرياضة مفضلة بالفعل للمستخدم
-                    $existingFavoriteSport = FavoritSports::where('user_id', $userId)
-                        ->where('sport_id', $sportId)
-                        ->first();
+        // تحقق وإضافة الرياضات
+        foreach ($selectedSports as $sportId) {
+            if ($sportId != null) {
+                $existingFavoriteSport = FavoritSports::where('user_id', $userId)
+                    ->where('sport_id', $sportId)
+                    ->first();
 
-                    if ($existingFavoriteSport) {
-                        continue; // تخطي الرياضة إذا كانت مفضلة بالفعل
-                    }
-
-                    // إنشاء رياضة مفضلة جديدة
+                if (! $existingFavoriteSport) {
                     $favoriteSport = new FavoritSports();
                     $favoriteSport->user_id = $userId;
                     $favoriteSport->sport_id = $sportId;
                     $favoriteSport->save();
 
                     $data = new UserDetails();
-
                     $data->user_id= $userId;
                     $data->sport_id= $sportId;
                     $data->level_id= 1;
-
                     $data->save();
-                }
-
-
-            }
-
-
-
-
-        // حذف الرياضات المفضلة
-        if ($deletedSports) {
-            foreach ($deletedSports as $sportId) {
-                // البحث عن الرياضة المفضلة للحذف
-                $favoriteSport = FavoritSports::where('user_id', $userId)
-                    ->where('sport_id', $sportId)
-                    ->first();
-
-                if ($favoriteSport) {
-                    $favoriteSport->delete();
                 }
             }
         }
+
+// حذف الرياضات
+        FavoritSports::where('user_id', $userId)
+            ->whereNotIn('sport_id', $selectedSports)
+            ->delete();
+
 
         $favoritSports = [];
 
