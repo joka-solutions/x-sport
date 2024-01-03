@@ -580,39 +580,89 @@ class UserController extends Controller
             ->whereNotIn('sport_id', $selectedSports)
             ->delete();
 
+        $userFavorit = FavoritSports::where('user_id', $userId)->with(['use', 'postion', 'time'])->get();
 
         $favoritSports = [];
 
-        foreach ($selectedSports as $sportId) {
-            $sport = Sport::with(['preferences' => function ($query) {
-                $query->with('options');
-            }])->find($sportId);
+        foreach ($userFavorit as $sportId) {
+            $sport = Sport::find($sportId->sport_id);
 
             if ($sport) {
                 $user_details = UserDetails::find($userId);
                 $level = UserLevel::find($user_details->level_id);
 
-                $favoritSports[] = [
+                $sport = $sport->load('preferences.options');
+
+                $sportDetails = [
                     'sport_id' => $sport->id,
                     'name' => $sport->name,
                     'level' => $level ? $level->name : null,
-                    'point' => 0,
-                    'preferences' => $sport->preferences->map(function ($preference) {
+                    'point' => $sportId->point,
+                    'preferences' => $sport->preferences->map(function ($preference) use ($sportId) {
+                        $selected = null;
+                        switch ($preference->name) {
+                            case 'اليد المفضلة':
+                                $selected = $sportId->use ? $sportId->use->name : "";
+                                break;
+                            case 'المركز المفضل':
+                                $selected = $sportId->postion ? $sportId->postion->name : "";
+                                break;
+                            case 'الوقت المفضل':
+                                $selected = $sportId->time ? $sportId->time->name : "";
+                                break;
+                            default:
+                                break;
+                        }
+
                         return [
                             'id' => $preference->id,
                             'name' => $preference->name,
+                            'selected' => $selected,
                             'options' => $preference->options->map(function ($option) {
                                 return [
                                     'id' => $option->id,
                                     'name' => $option->name,
-                                    // يمكنك إضافة المزيد من البيانات هنا إذا أردت
                                 ];
-                            })
+                            }),
                         ];
-                    })
+                    }),
                 ];
+
+                $favoritSports[] = $sportDetails;
             }
         }
+
+
+//        foreach ($selectedSports as $sportId) {
+//            $sport = Sport::with(['preferences' => function ($query) {
+//                $query->with('options');
+//            }])->find($sportId);
+//
+//            if ($sport) {
+//                $user_details = UserDetails::find($userId);
+//                $level = UserLevel::find($user_details->level_id);
+//
+//                $favoritSports[] = [
+//                    'sport_id' => $sport->id,
+//                    'name' => $sport->name,
+//                    'level' => $level ? $level->name : null,
+//                    'point' => 0,
+//                    'preferences' => $sport->preferences->map(function ($preference) {
+//                        return [
+//                            'id' => $preference->id,
+//                            'name' => $preference->name,
+//                            'options' => $preference->options->map(function ($option) {
+//                                return [
+//                                    'id' => $option->id,
+//                                    'name' => $option->name,
+//                                    // يمكنك إضافة المزيد من البيانات هنا إذا أردت
+//                                ];
+//                            })
+//                        ];
+//                    })
+//                ];
+//            }
+//        }
 
         $data = [
             'id' => $user->id,
